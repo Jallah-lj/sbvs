@@ -46,7 +46,7 @@ if ($type === 'student') {
     if ($data['photo_url']) $photo = '../../../' . $data['photo_url'];
 } elseif ($type === 'teacher' || $type === 'staff') {
     $stmt = $db->prepare("
-        SELECT u.name, u.email, u.role, t.phone, t.specialization, b.name as branch_name 
+        SELECT t.teacher_id, u.name, u.email, u.role, t.phone, t.specialization, b.name as branch_name 
         FROM teachers t
         JOIN users u ON t.user_id = u.id
         LEFT JOIN branches b ON t.branch_id = b.id 
@@ -57,7 +57,8 @@ if ($type === 'student') {
     if (!$data) die("Staff/Instructor not found.");
     
     $name = $data['name'];
-    $idNumber = 'EMP-' . str_pad($id, 4, '0', STR_PAD_LEFT);
+    // Use the stored teacher_id; fall back to EMP-XXXX for legacy rows not yet migrated
+    $idNumber = $data['teacher_id'] ?: ('EMP-' . str_pad($id, 4, '0', STR_PAD_LEFT));
     $roleText = strtoupper($data['role'] ?: 'INSTRUCTOR');
     $branchName = $data['branch_name'] ?? 'Global';
     $phone = $data['phone'] ?: 'N/A';

@@ -113,7 +113,7 @@ try {
     }
 
     if ($action == 'register' && $_SERVER['REQUEST_METHOD'] == 'POST') {
-        $student_id = 'VS-' . date('Y') . '-' . strtoupper(substr(uniqid(), -5));
+        $student_id = $studentModel->generateStudentId();
         // Non-Super Admin is always forced into their own branch
         $branchToUse = $isSuperAdmin ? intval($_POST['branch_id']) : $sessionBranch;
         $data = [

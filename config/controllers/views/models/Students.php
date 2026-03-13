@@ -7,6 +7,36 @@ class Student {
         $this->conn = $db;
     }
 
+    /**
+     * Generates a unique, sequential Student ID.
+     * Format: STU-{YEAR}-{NNNN}  (e.g., STU-2026-0001)
+     * The counter is global across all branches and resets each calendar year.
+     *
+     * @return string
+     * @throws Exception
+     */
+    public function generateStudentId(): string {
+        $year   = date('Y');
+        $prefix = 'STU-' . $year . '-';
+
+        $stmt = $this->conn->prepare(
+            "SELECT student_id FROM students
+             WHERE student_id LIKE :prefix
+             ORDER BY id DESC LIMIT 1"
+        );
+        $stmt->execute([':prefix' => $prefix . '%']);
+        $last = $stmt->fetchColumn();
+
+        if ($last !== false) {
+            $lastNum = (int) substr($last, -4);
+            $newNum  = $lastNum + 1;
+        } else {
+            $newNum = 1;
+        }
+
+        return $prefix . str_pad($newNum, 4, '0', STR_PAD_LEFT);
+    }
+
     // Advanced: Create student with transaction to ensure user & student records are atomic
     public function create($data) {
         try {

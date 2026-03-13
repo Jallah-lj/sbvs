@@ -196,7 +196,8 @@ $activePage = 'teachers.php';
                     <table class="table table-hover align-middle w-100" id="teacherTable">
                         <thead class="table-light text-muted small text-uppercase" style="letter-spacing: 0.05em;">
                             <tr>
-                                <th class="ps-3 fw-semibold">Full Name</th>
+                                <th class="ps-3 fw-semibold">Instructor ID</th>
+                                <th class="fw-semibold">Full Name</th>
                                 <th class="fw-semibold">Email</th>
                                 <th class="fw-semibold">Phone</th>
                                 <th class="fw-semibold">Specialization</th>
@@ -353,7 +354,13 @@ $(document).ready(function () {
             data: function (d) { d.branch_id = $('#branchFilter').val(); }
         },
         columns: [
-            { data: 'name', className: 'fw-bold text-dark ps-3 align-middle' },
+            {
+                data: 'teacher_id', className: 'ps-3 align-middle',
+                render: function (data) {
+                    return data ? '<code class="text-primary small">' + data + '</code>' : '<span class="text-muted small">—</span>';
+                }
+            },
+            { data: 'name', className: 'fw-bold text-dark align-middle' },
             { data: 'email', className: 'text-muted align-middle' },
             { data: 'phone', className: 'text-muted align-middle' },
             { data: 'specialization', className: 'text-dark fw-medium align-middle' },

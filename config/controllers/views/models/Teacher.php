@@ -7,8 +7,37 @@ class Teacher {
         $this->conn = $db;
     }
 
+    /**
+     * Generates a unique, sequential Teacher ID.
+     * Format: TCH-{YEAR}-{NNNN}  (e.g., TCH-2026-0001)
+     * Distinct from student IDs (STU-YEAR-NNNN) by the TCH prefix.
+     *
+     * @return string
+     */
+    public function generateTeacherId(): string {
+        $year   = date('Y');
+        $prefix = 'TCH-' . $year . '-';
+
+        $stmt = $this->conn->prepare(
+            "SELECT teacher_id FROM teachers
+             WHERE teacher_id LIKE :prefix
+             ORDER BY id DESC LIMIT 1"
+        );
+        $stmt->execute([':prefix' => $prefix . '%']);
+        $last = $stmt->fetchColumn();
+
+        if ($last !== false) {
+            $lastNum = (int) substr($last, -4);
+            $newNum  = $lastNum + 1;
+        } else {
+            $newNum = 1;
+        }
+
+        return $prefix . str_pad($newNum, 4, '0', STR_PAD_LEFT);
+    }
+
     public function getAll($branch_id = null) {
-        $query = "SELECT t.id, u.name, u.email, t.phone, t.specialization,
+        $query = "SELECT t.id, t.teacher_id, u.name, u.email, t.phone, t.specialization,
                          t.branch_id, b.name as branch_name, t.status
                   FROM " . $this->table_name . " t
                   JOIN users u ON t.user_id = u.id
@@ -36,15 +65,19 @@ class Teacher {
             ]);
             $user_id = $this->conn->lastInsertId();
 
-            // 2. Create teacher record
-            $teacher_query = "INSERT INTO teachers (user_id, branch_id, phone, specialization, status)
-                              VALUES (:user_id, :branch_id, :phone, :specialization, 'Active')";
+            // 2. Generate teacher ID — done inside the transaction so the SELECT is consistent
+            $teacher_id = $this->generateTeacherId();
+
+            // 3. Create teacher record with the generated teacher_id
+            $teacher_query = "INSERT INTO teachers (user_id, branch_id, phone, specialization, status, teacher_id)
+                              VALUES (:user_id, :branch_id, :phone, :specialization, 'Active', :teacher_id)";
             $stmt2 = $this->conn->prepare($teacher_query);
             $stmt2->execute([
                 ':user_id'        => $user_id,
                 ':branch_id'      => $data['branch_id'],
                 ':phone'          => $data['phone'],
-                ':specialization' => $data['specialization']
+                ':specialization' => $data['specialization'],
+                ':teacher_id'     => $teacher_id
             ]);
 
             $this->conn->commit();
@@ -56,7 +89,7 @@ class Teacher {
     }
 
     public function getById($id) {
-        $query = "SELECT t.id, u.name, u.email, t.phone, t.specialization,
+        $query = "SELECT t.id, t.teacher_id, u.name, u.email, t.phone, t.specialization,
                          t.branch_id, b.name as branch_name, t.status, t.user_id
                   FROM " . $this->table_name . " t
                   JOIN users u ON t.user_id = u.id
