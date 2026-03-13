@@ -22,6 +22,7 @@ if (!$studentId || !$enrollId) { header('Location: student_registration.php'); e
 
 $stmt = $db->prepare(
     "SELECT s.id AS student_row_id, s.student_id AS student_code, s.branch_id,
+            s.phone AS student_phone, s.registration_date,
             u.name AS student_name, u.email,
             c.name AS course_name, c.duration, c.fees,
             c.registration_fee, c.tuition_fee,
@@ -439,6 +440,9 @@ $printedAt  = date('F j, Y \a\t g:i A');
                 <div class="info-row"><span class="info-label">Name:</span> <strong><?= htmlspecialchars($row['student_name']) ?></strong></div>
                 <div class="info-row"><span class="info-label">Student ID:</span> <?= htmlspecialchars($row['student_code']) ?></div>
                 <div class="info-row"><span class="info-label">Email:</span> <?= htmlspecialchars($row['email']) ?></div>
+                <?php if (!empty($row['student_phone'])): ?>
+                <div class="info-row"><span class="info-label">Phone:</span> <?= htmlspecialchars($row['student_phone']) ?></div>
+                <?php endif; ?>
                 <div class="info-row"><span class="info-label">Branch:</span> <?= htmlspecialchars($row['branch_name']) ?></div>
             </div>
             <div class="col-md-6" style="border-left: 1px dashed var(--border); padding-left: 24px;">
@@ -447,6 +451,9 @@ $printedAt  = date('F j, Y \a\t g:i A');
                 <div class="info-row"><span class="info-label">Duration:</span> <?= htmlspecialchars($row['duration']) ?></div>
                 <div class="info-row"><span class="info-label">Batch:</span> <?= htmlspecialchars($row['batch_name']) ?></div>
                 <div class="info-row"><span class="info-label">Enrolled:</span> <?= date('M j, Y', strtotime($row['enrollment_date'])) ?></div>
+                <?php if (!empty($row['registration_date'])): ?>
+                <div class="info-row"><span class="info-label">Registered:</span> <?= date('M j, Y', strtotime($row['registration_date'])) ?></div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -541,7 +548,6 @@ $printedAt  = date('F j, Y \a\t g:i A');
 
     <!-- ② Bottom guilloche bar -->
     <svg class="guilloche" viewBox="0 0 820 18" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs><use href="#gp"/></defs>
         <rect width="820" height="18" fill="url(#gp)"/>
     </svg>
 

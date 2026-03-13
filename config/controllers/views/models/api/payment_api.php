@@ -471,7 +471,10 @@ switch ($action) {
         $stmt = $db->prepare(
             "SELECT p.*,
                     u.name  AS student_name,  s.student_id AS student_code,
-                    c.name  AS course_name,   COALESCE(e.locked_fee, c.fees) AS fees,
+                    c.name  AS course_name,
+                    COALESCE(e.locked_fee, c.fees) AS fees,
+                    COALESCE(c.registration_fee, 0) AS registration_fee,
+                    COALESCE(c.tuition_fee, 0)      AS tuition_fee,
                     b.name  AS branch_name,   b.address AS branch_address,
                     b.phone AS branch_phone,  b.email   AS branch_email,
                     COALESCE((

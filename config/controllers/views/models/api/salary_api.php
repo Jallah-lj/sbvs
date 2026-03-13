@@ -589,12 +589,14 @@ if ($action === 'slip_detail') {
         "SELECT ps.*, u.name AS employee_name, u.email, u.role AS employee_role,
                 b.name AS branch_name, b.address AS branch_address, b.phone AS branch_phone, b.email AS branch_email,
                 sg.name AS grade_name, sg.level AS grade_level,
-                pr.pay_period_month, pr.pay_period_year, pr.pay_date
+                pr.pay_period_month, pr.pay_period_year, pr.pay_date,
+                COALESCE(t.teacher_id, '') AS teacher_id
          FROM payroll_slips ps
          JOIN payroll_runs pr ON ps.run_id = pr.id
          JOIN users u ON ps.user_id = u.id
          JOIN branches b ON ps.branch_id = b.id
          LEFT JOIN salary_grades sg ON ps.grade_id = sg.id
+         LEFT JOIN teachers t ON t.user_id = ps.user_id
          WHERE ps.id = ?"
     );
     $stmt->execute([$slipId]);
