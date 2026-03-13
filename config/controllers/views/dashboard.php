@@ -173,6 +173,86 @@ if ($isSuperAdmin) {
     $recentPayments = $rpStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// ── Super Admin: Branch performance scorecards ────────────────────────────────
+$branchPerformance = [];
+if ($isSuperAdmin) {
+    try {
+        $branchPerformance = $db->query(
+            "SELECT b.id, b.name,
+                    (SELECT COUNT(*) FROM students s WHERE s.branch_id = b.id) AS total_students,
+                    (SELECT COUNT(*) FROM enrollments e JOIN students s ON e.student_id = s.id WHERE s.branch_id = b.id AND e.status='Active') AS active_enrollments,
+                    (SELECT COUNT(*) FROM enrollments e JOIN students s ON e.student_id = s.id WHERE s.branch_id = b.id AND e.status='Completed') AS completions,
+                    (SELECT COALESCE(SUM(amount),0) FROM payments p WHERE p.branch_id = b.id AND MONTH(p.payment_date)=MONTH(CURDATE()) AND YEAR(p.payment_date)=YEAR(CURDATE())) AS monthly_rev
+             FROM branches b WHERE b.status='Active'
+             ORDER BY monthly_rev DESC"
+        )->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $branchPerformance = []; }
+
+    // Pending approvals for SA notification badge
+    try {
+        $pendingApprovals = (int)$db->query(
+            "SELECT COUNT(*) FROM discount_approvals WHERE status='Pending'"
+        )->fetchColumn();
+    } catch (Exception $e) { $pendingApprovals = 0; }
+
+    // Pending transfers
+    try {
+        $pendingTransfers = (int)$db->query(
+            "SELECT COUNT(*) FROM transfer_requests WHERE status='Pending Origin Approval'"
+        )->fetchColumn();
+    } catch (Exception $e) { $pendingTransfers = 0; }
+}
+
+// ── Branch Admin: today's operational widgets ─────────────────────────────────
+$todayBatches       = [];
+$overduePayments    = 0;
+$pendingTransfersBA = 0;
+$todayAttSummary    = ['present'=>0,'absent'=>0,'late'=>0,'total'=>0];
+if ($isBranchAdmin) {
+    try {
+        $tbStmt = $db->prepare(
+            "SELECT b.batch_name, c.name AS course_name
+             FROM batches b JOIN courses c ON b.course_id = c.id
+             WHERE b.branch_id = ? AND b.status = 'Active'
+             ORDER BY b.batch_name LIMIT 5"
+        );
+        $tbStmt->execute([$branchId]);
+        $todayBatches = $tbStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $todayBatches = []; }
+
+    try {
+        $overduePayments = (int)$db->prepare(
+            "SELECT COUNT(DISTINCT s.id) FROM students s
+             LEFT JOIN payments p ON p.student_id = s.id
+             WHERE s.branch_id = ?
+               AND (p.balance > 0 OR p.id IS NULL)"
+        );
+        $ovStmt = $db->prepare(
+            "SELECT COUNT(*) FROM payments WHERE branch_id = ? AND balance > 0"
+        );
+        $ovStmt->execute([$branchId]);
+        $overduePayments = (int)$ovStmt->fetchColumn();
+    } catch (Exception $e) { $overduePayments = 0; }
+
+    try {
+        $ptStmt = $db->prepare(
+            "SELECT COUNT(*) FROM transfer_requests WHERE origin_branch_id = ? AND status = 'Pending Origin Approval'"
+        );
+        $ptStmt->execute([$branchId]);
+        $pendingTransfersBA = (int)$ptStmt->fetchColumn();
+    } catch (Exception $e) { $pendingTransfersBA = 0; }
+
+    try {
+        $attStmt = $db->prepare(
+            "SELECT SUM(status='Present') AS present, SUM(status='Absent') AS absent,
+                    SUM(status='Late') AS late, COUNT(*) AS total
+             FROM attendance WHERE branch_id = ? AND attend_date = CURDATE()"
+        );
+        $attStmt->execute([$branchId]);
+        $todayAttSummary = $attStmt->fetch(PDO::FETCH_ASSOC) ?: $todayAttSummary;
+    } catch (Exception $e) { $todayAttSummary = ['present'=>0,'absent'=>0,'late'=>0,'total'=>0]; }
+}
+
 $userName = htmlspecialchars($_SESSION['name'] ?? $_SESSION['user_name'] ?? 'Admin');
 $userRole = htmlspecialchars($role);
 ?>
@@ -306,14 +386,202 @@ CSS;
                 <div class="kpi-icon" style="background:rgba(99,102,241,0.1);color:#6366f1;"><i class="bi bi-shield-lock-fill"></i></div>
                 <div class="flex-grow-1">
                     <div class="fw-bold" style="font-size:.9rem;">Super Admin Controls</div>
-                    <div class="text-muted" style="font-size:.78rem;">Manage administrators and system-level settings</div>
+                    <div class="text-muted" style="font-size:.78rem;">Manage branches, global catalog, settings, and compliance</div>
                 </div>
-                <a href="manage_admins.php" class="btn btn-sm px-3" style="background:#6366f1;color:#fff;font-weight:600;border-radius:8px;">
-                    <i class="bi bi-shield-lock me-1"></i> Branch Admins
+                <a href="branches.php" class="btn btn-sm px-3" style="background:#6366f1;color:#fff;font-weight:600;border-radius:8px;white-space:nowrap;">
+                    <i class="bi bi-buildings me-1"></i> Branches
                 </a>
-                <a href="manage_super_admins.php" class="btn btn-sm btn-outline-secondary px-3" style="border-radius:8px;font-weight:600;">
-                    <i class="bi bi-person-gear me-1"></i> Super Admins
+                <a href="global_programs.php" class="btn btn-sm btn-outline-secondary px-3" style="border-radius:8px;font-weight:600;white-space:nowrap;">
+                    <i class="bi bi-mortarboard me-1"></i> Global Programs
                 </a>
+                <a href="audit_logs.php" class="btn btn-sm btn-outline-secondary px-3" style="border-radius:8px;font-weight:600;white-space:nowrap;">
+                    <i class="bi bi-journal-text me-1"></i> Audit Logs
+                </a>
+                <a href="system_settings.php" class="btn btn-sm btn-outline-secondary px-3" style="border-radius:8px;font-weight:600;white-space:nowrap;">
+                    <i class="bi bi-gear me-1"></i> Settings
+                </a>
+                <a href="approval_workflows.php" class="btn btn-sm px-3" style="background:<?= $pendingApprovals > 0 ? '#ef4444' : '#64748b' ?>;color:#fff;font-weight:600;border-radius:8px;white-space:nowrap;">
+                    <i class="bi bi-clipboard2-check me-1"></i> Approvals <?= $pendingApprovals > 0 ? "<span class=\"badge bg-white text-danger ms-1\">{$pendingApprovals}</span>" : '' ?>
+                </a>
+            </div>
+        </div>
+
+        <!-- ── Branch Performance Scorecards (Super Admin) ─── -->
+        <?php if (!empty($branchPerformance)): ?>
+        <div class="card mb-4 fade-up">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-trophy-fill me-1" style="color:#f59e0b;"></i> Branch Performance Scorecards</h6>
+                <a href="reports.php" class="btn btn-sm" style="background:rgba(245,158,11,0.1);color:#f59e0b;font-weight:600;border-radius:8px;">Full Report</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+                        <thead style="background:#f8fafc;border-bottom:1px solid rgba(0,0,0,.06);">
+                            <tr>
+                                <th class="ps-4 py-3">Branch</th>
+                                <th class="py-3 text-center">Students</th>
+                                <th class="py-3 text-center">Active Enrollments</th>
+                                <th class="py-3 text-center">Completions</th>
+                                <th class="py-3 text-center">This Month Revenue</th>
+                                <th class="py-3 text-center">Completion Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($branchPerformance as $bp):
+                                $compRate = ($bp['active_enrollments'] + $bp['completions']) > 0
+                                    ? round($bp['completions'] / ($bp['active_enrollments'] + $bp['completions']) * 100)
+                                    : 0;
+                                $barColor = $compRate >= 70 ? '#10b981' : ($compRate >= 40 ? '#f59e0b' : '#ef4444');
+                            ?>
+                            <tr>
+                                <td class="ps-4 fw-semibold"><?= htmlspecialchars($bp['name']) ?></td>
+                                <td class="text-center"><?= (int)$bp['total_students'] ?></td>
+                                <td class="text-center"><span class="badge-active" style="font-size:.78rem;"><?= (int)$bp['active_enrollments'] ?></span></td>
+                                <td class="text-center"><?= (int)$bp['completions'] ?></td>
+                                <td class="text-center fw-semibold" style="color:#10b981;">$<?= number_format($bp['monthly_rev'], 0) ?></td>
+                                <td class="text-center" style="min-width:120px;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="flex-grow-1" style="background:#f1f5f9;border-radius:4px;height:6px;">
+                                            <div style="width:<?= $compRate ?>%;background:<?= $barColor ?>;border-radius:4px;height:6px;transition:width .5s;"></div>
+                                        </div>
+                                        <span style="font-size:.78rem;font-weight:600;color:<?= $barColor ?>;min-width:32px;"><?= $compRate ?>%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- ── Pending Workflows Alert (Super Admin) ─────────── -->
+        <?php if ($pendingApprovals > 0 || $pendingTransfers > 0): ?>
+        <div class="row g-3 mb-4">
+            <?php if ($pendingApprovals > 0): ?>
+            <div class="col-md-6 fade-up">
+                <div class="card border-0 h-100" style="background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.15)!important;">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="kpi-icon" style="background:rgba(239,68,68,.1);color:#ef4444;font-size:1.2rem;"><i class="bi bi-percent"></i></div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold" style="font-size:.9rem;color:#ef4444;"><?= $pendingApprovals ?> Discount Approval<?= $pendingApprovals > 1 ? 's' : '' ?> Pending</div>
+                            <div class="text-muted" style="font-size:.78rem;">Branch Admins are waiting for your review</div>
+                        </div>
+                        <a href="approval_workflows.php" class="btn btn-sm" style="background:#ef4444;color:#fff;border-radius:8px;font-weight:600;white-space:nowrap;">Review Now</a>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+            <?php if ($pendingTransfers > 0): ?>
+            <div class="col-md-6 fade-up">
+                <div class="card border-0 h-100" style="background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.15)!important;">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="kpi-icon" style="background:rgba(245,158,11,.1);color:#f59e0b;font-size:1.2rem;"><i class="bi bi-arrow-left-right"></i></div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold" style="font-size:.9rem;color:#f59e0b;"><?= $pendingTransfers ?> Transfer Request<?= $pendingTransfers > 1 ? 's' : '' ?> Pending</div>
+                            <div class="text-muted" style="font-size:.78rem;">Awaiting origin branch approval</div>
+                        </div>
+                        <a href="transfers.php" class="btn btn-sm" style="background:#f59e0b;color:#fff;border-radius:8px;font-weight:600;white-space:nowrap;">View</a>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+        <?php endif; ?>
+
+        <!-- ── Branch Admin: Operations Widgets ─────────────── -->
+        <?php if ($isBranchAdmin): ?>
+        <div class="row g-3 mb-4">
+            <!-- Active Batches Today -->
+            <div class="col-lg-5 fade-up">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold"><i class="bi bi-calendar-week-fill me-1" style="color:#6366f1;"></i> Active Batches</h6>
+                        <a href="batches.php" class="btn btn-sm" style="background:var(--accent-light);color:#6366f1;font-weight:600;border-radius:8px;">All Batches</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <?php if (empty($todayBatches)): ?>
+                            <p class="text-muted small p-4 mb-0 text-center">No active batches.</p>
+                        <?php else: ?>
+                            <?php foreach ($todayBatches as $tb): ?>
+                            <div class="activity-item">
+                                <div class="avatar-sm" style="background:rgba(99,102,241,.1);color:#6366f1;"><i class="bi bi-collection"></i></div>
+                                <div class="flex-grow-1" style="min-width:0;">
+                                    <div class="fw-semibold text-truncate" style="font-size:.875rem;"><?= htmlspecialchars($tb['batch_name']) ?></div>
+                                    <div class="text-muted" style="font-size:.75rem;"><?= htmlspecialchars($tb['course_name']) ?></div>
+                                </div>
+                                <a href="attendance.php" class="btn btn-sm btn-outline-secondary" style="border-radius:6px;font-size:.75rem;padding:3px 8px;font-weight:600;">Take Attendance</a>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Today's Attendance Summary -->
+            <div class="col-lg-3 fade-up">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold"><i class="bi bi-calendar-check-fill me-1" style="color:#10b981;"></i> Attendance Today</h6>
+                        <a href="attendance.php" class="btn btn-sm" style="background:rgba(16,185,129,.1);color:#10b981;font-weight:600;border-radius:8px;">View</a>
+                    </div>
+                    <div class="card-body">
+                        <?php if ((int)$todayAttSummary['total'] === 0): ?>
+                            <p class="text-muted small mb-0 text-center">No attendance recorded today.</p>
+                        <?php else: ?>
+                            <div class="d-flex flex-column gap-2" style="font-size:.85rem;">
+                                <div class="d-flex justify-content-between">
+                                    <span style="color:#10b981;font-weight:600;"><i class="bi bi-check-circle-fill me-1"></i> Present</span>
+                                    <strong><?= (int)$todayAttSummary['present'] ?></strong>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span style="color:#ef4444;font-weight:600;"><i class="bi bi-x-circle-fill me-1"></i> Absent</span>
+                                    <strong><?= (int)$todayAttSummary['absent'] ?></strong>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span style="color:#f59e0b;font-weight:600;"><i class="bi bi-clock-fill me-1"></i> Late</span>
+                                    <strong><?= (int)$todayAttSummary['late'] ?></strong>
+                                </div>
+                                <hr class="my-1">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Total</span>
+                                    <strong><?= (int)$todayAttSummary['total'] ?></strong>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts: Overdue Payments + Pending Transfers -->
+            <div class="col-lg-4 fade-up">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h6 class="mb-0 fw-bold"><i class="bi bi-exclamation-triangle-fill me-1" style="color:#ef4444;"></i> Action Required</h6>
+                    </div>
+                    <div class="card-body d-flex flex-column gap-3">
+                        <a href="payments.php" class="text-decoration-none">
+                            <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.12);">
+                                <div class="kpi-icon" style="background:rgba(239,68,68,.1);color:#ef4444;flex-shrink:0;"><i class="bi bi-cash-coin"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="color:#ef4444;font-size:.88rem;"><?= $overduePayments ?> Outstanding Balance<?= $overduePayments !== 1 ? 's' : '' ?></div>
+                                    <div class="text-muted" style="font-size:.76rem;">Payments with remaining balance</div>
+                                </div>
+                            </div>
+                        </a>
+                        <a href="transfers.php" class="text-decoration-none">
+                            <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.12);">
+                                <div class="kpi-icon" style="background:rgba(245,158,11,.1);color:#f59e0b;flex-shrink:0;"><i class="bi bi-arrow-left-right"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="color:#f59e0b;font-size:.88rem;"><?= $pendingTransfersBA ?> Pending Transfer<?= $pendingTransfersBA !== 1 ? 's' : '' ?></div>
+                                    <div class="text-muted" style="font-size:.76rem;">Awaiting your branch approval</div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
         <?php endif; ?>

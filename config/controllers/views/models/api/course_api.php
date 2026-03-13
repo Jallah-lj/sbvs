@@ -22,6 +22,19 @@ $isSuperAdmin  = ($role === 'Super Admin');
 
 $action = $_GET['action'] ?? '';
 
+// Lightweight list for dropdowns (approval workflow etc.)
+if ($action === 'list_simple') {
+    $bid = $isSuperAdmin ? (int)($_GET['branch_id'] ?? 0) : $sessionBranch;
+    $sql = "SELECT id, name FROM courses";
+    $args = [];
+    if ($bid) { $sql .= " WHERE branch_id = ?"; $args[] = $bid; }
+    $sql .= " ORDER BY name";
+    $st  = $db->prepare($sql);
+    $st->execute($args);
+    echo json_encode(["data" => $st->fetchAll(PDO::FETCH_ASSOC)]);
+    exit;
+}
+
 // LIST
 if ($action === 'list') {
     $branch_id = $isSuperAdmin ? ($_GET['branch_id'] ?: null) : ($sessionBranch ?: null);

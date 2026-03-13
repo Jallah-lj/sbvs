@@ -99,6 +99,19 @@ try {
         exit;
     }
 
+    // Lightweight list for dropdowns (approval workflow etc.)
+    if ($action === 'list_simple') {
+        $bid = $isSuperAdmin ? (int)($_GET['branch_id'] ?? 0) : $sessionBranch;
+        $sql = "SELECT s.id, u.name, s.student_id FROM students s JOIN users u ON s.user_id = u.id";
+        $args = [];
+        if ($bid) { $sql .= " WHERE s.branch_id = ?"; $args[] = $bid; }
+        $sql .= " ORDER BY u.name";
+        $st  = $db->prepare($sql);
+        $st->execute($args);
+        echo json_encode(["data" => $st->fetchAll(PDO::FETCH_ASSOC)]);
+        exit;
+    }
+
     if ($action == 'register' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $student_id = 'VS-' . date('Y') . '-' . strtoupper(substr(uniqid(), -5));
         // Non-Super Admin is always forced into their own branch
