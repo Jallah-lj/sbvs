@@ -82,24 +82,46 @@ $isBranchAdmin = ($role === 'Branch Admin');
 
 // ── API ENDPOINTS ──────────────────────────────────────────────────────────
 
+// LIST ACTIVE BRANCHES (used to populate selectors in the UI)
+if ($action === 'branches') {
+    $stmt = $db->query("SELECT id, name FROM branches WHERE status='Active' ORDER BY name");
+    echo json_encode(['data' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    exit;
+}
+
 // LIST TRANSFERS
 if ($action === 'list') {
-    // All admins (Super and Branch) can now see all transfers
-    $query = "
-        SELECT t.id, t.transfer_id, u.name as student_name, s.student_id as student_code,
-               bo.name as origin_branch, bd.name as destination_branch, t.status, t.created_at
-        FROM transfer_requests t
-        JOIN students s ON t.student_id = s.id
-        JOIN users u ON s.user_id = u.id
-        JOIN branches bo ON t.origin_branch_id = bo.id
-        JOIN branches bd ON t.destination_branch_id = bd.id
-        ORDER BY t.created_at DESC
-    ";
-    
-    $stmt = $db->prepare($query);
-    $stmt->execute();
+    // Super Admin sees all; Branch Admin sees only their own branch (origin or destination)
+    if ($isSuperAdmin) {
+        $query = "
+            SELECT t.id, t.transfer_id, u.name as student_name, s.student_id as student_code,
+                   bo.name as origin_branch, bd.name as destination_branch, t.status, t.created_at
+            FROM transfer_requests t
+            JOIN students s ON t.student_id = s.id
+            JOIN users u ON s.user_id = u.id
+            JOIN branches bo ON t.origin_branch_id = bo.id
+            JOIN branches bd ON t.destination_branch_id = bd.id
+            ORDER BY t.created_at DESC
+        ";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+    } else {
+        $query = "
+            SELECT t.id, t.transfer_id, u.name as student_name, s.student_id as student_code,
+                   bo.name as origin_branch, bd.name as destination_branch, t.status, t.created_at
+            FROM transfer_requests t
+            JOIN students s ON t.student_id = s.id
+            JOIN users u ON s.user_id = u.id
+            JOIN branches bo ON t.origin_branch_id = bo.id
+            JOIN branches bd ON t.destination_branch_id = bd.id
+            WHERE t.origin_branch_id = ? OR t.destination_branch_id = ?
+            ORDER BY t.created_at DESC
+        ";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$sessionBranch, $sessionBranch]);
+    }
+
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
     echo json_encode(['data' => $data]);
     exit;
 }
