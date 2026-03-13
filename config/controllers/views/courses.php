@@ -301,14 +301,12 @@ $(document).ready(function () {
                 data: null, orderable: false, className: 'text-end text-center pe-4',
                 render: function (data) {
                     let btns = '<div class="d-flex gap-2 justify-content-end">';
+                    btns += `<a class="btn btn-action" style="background:#ede9fe;color:#4f46e5;border:1.5px solid #c4b5fd;" title="Course Info Sheet" href="course_info_sheet.php?course_id=${data.id}" target="_blank"><i class="bi bi-file-earmark-text-fill"></i></a>`;
                     if (canEdit) {
                         btns += `<button class="btn btn-action btn-edit" title="Edit" onclick="editCourse(${data.id})"><i class="bi bi-pencil-fill"></i></button>`;
                     }
                     if (canDelete) {
                         btns += `<button class="btn btn-action btn-delete" title="Delete" onclick="deleteCourse(${data.id}, '${$('<div>').text(data.name).html()}')"><i class="bi bi-trash-fill"></i></button>`;
-                    }
-                    if (!canEdit && !canDelete) {
-                        btns += '<span class="badge bg-light text-muted">View only</span>';
                     }
                     btns += '</div>';
                     return btns;
