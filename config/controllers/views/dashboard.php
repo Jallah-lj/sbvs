@@ -204,10 +204,12 @@ if ($isSuperAdmin) {
 }
 
 // ── Branch Admin: today's operational widgets ─────────────────────────────────
-$todayBatches       = [];
-$overduePayments    = 0;
-$pendingTransfersBA = 0;
-$todayAttSummary    = ['present'=>0,'absent'=>0,'late'=>0,'total'=>0];
+$todayBatches          = [];
+$overduePayments       = 0;
+$pendingTransfersBA    = 0;
+$todayAttSummary       = ['present'=>0,'absent'=>0,'late'=>0,'total'=>0];
+$lowAttendanceCount    = 0;
+$newAdmissionsThisWeek = 0;
 if ($isBranchAdmin) {
     try {
         $tbStmt = $db->prepare(
@@ -245,6 +247,83 @@ if ($isBranchAdmin) {
         $attStmt->execute([$branchId]);
         $todayAttSummary = $attStmt->fetch(PDO::FETCH_ASSOC) ?: $todayAttSummary;
     } catch (Exception $e) { $todayAttSummary = ['present'=>0,'absent'=>0,'late'=>0,'total'=>0]; }
+
+    // Students with < 60% attendance (minimum 5 sessions recorded)
+    try {
+        $laStmt = $db->prepare(
+            "SELECT COUNT(DISTINCT student_id) FROM (
+                SELECT student_id,
+                       SUM(status='Present') / COUNT(*) * 100 AS att_rate
+                FROM attendance
+                WHERE branch_id = ?
+                GROUP BY student_id
+                HAVING COUNT(*) >= 5 AND att_rate < 60
+             ) x"
+        );
+        $laStmt->execute([$branchId]);
+        $lowAttendanceCount = (int)$laStmt->fetchColumn();
+    } catch (Exception $e) { $lowAttendanceCount = 0; }
+
+    // New admissions registered in the last 7 days
+    try {
+        $naStmt = $db->prepare(
+            "SELECT COUNT(*) FROM students
+             WHERE branch_id = ?
+               AND registration_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)"
+        );
+        $naStmt->execute([$branchId]);
+        $newAdmissionsThisWeek = (int)$naStmt->fetchColumn();
+    } catch (Exception $e) { $newAdmissionsThisWeek = 0; }
+}
+
+// ── Super Admin: top programs + exceptions + audit highlights ─────────────────
+$topPrograms    = [];
+$needsAttention = [];
+$recentAudit    = [];
+if ($isSuperAdmin) {
+    // Top 5 programs by total enrollments across all branches
+    try {
+        $topPrograms = $db->query(
+            "SELECT c.name,
+                    COUNT(e.id)                 AS total_enrollments,
+                    COUNT(DISTINCT s.branch_id) AS branches_offering
+             FROM courses c
+             LEFT JOIN enrollments e ON e.course_id = c.id
+             LEFT JOIN students   s ON e.student_id = s.id
+             GROUP BY c.id, c.name
+             ORDER BY total_enrollments DESC
+             LIMIT 5"
+        )->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $topPrograms = []; }
+
+    // Branches with no revenue this month OR no active enrollments (need attention)
+    try {
+        $needsAttention = $db->query(
+            "SELECT b.name,
+                    (SELECT COALESCE(SUM(amount),0) FROM payments p
+                     WHERE p.branch_id = b.id
+                       AND MONTH(p.payment_date)=MONTH(CURDATE())
+                       AND YEAR(p.payment_date)=YEAR(CURDATE())) AS monthly_rev,
+                    (SELECT COUNT(*) FROM students s WHERE s.branch_id = b.id) AS total_students,
+                    (SELECT COUNT(*) FROM enrollments e
+                       JOIN students s ON e.student_id = s.id
+                     WHERE s.branch_id = b.id AND e.status='Active') AS active_enrollments
+             FROM branches b
+             WHERE b.status='Active'
+             HAVING monthly_rev = 0 OR (total_students > 0 AND active_enrollments = 0)
+             ORDER BY b.name"
+        )->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $needsAttention = []; }
+
+    // Most recent 5 audit log entries for compliance visibility
+    try {
+        $recentAudit = $db->query(
+            "SELECT user_name, user_role, module, action, created_at
+             FROM audit_logs
+             ORDER BY created_at DESC
+             LIMIT 5"
+        )->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) { $recentAudit = []; }
 }
 
 $userName = htmlspecialchars($_SESSION['name'] ?? $_SESSION['user_name'] ?? 'Admin');
@@ -485,6 +564,131 @@ CSS;
         <?php endif; ?>
         <?php endif; ?>
 
+        <!-- ── Super Admin: Exceptions & Intelligence ──────────── -->
+        <?php if ($isSuperAdmin): ?>
+
+        <?php if (!empty($needsAttention) || !empty($topPrograms)): ?>
+        <div class="row g-3 mb-4">
+
+            <!-- Branches Needing Attention -->
+            <?php if (!empty($needsAttention)): ?>
+            <div class="col-lg-4 fade-up">
+                <div class="card h-100 border-0" style="border-left:4px solid #ef4444!important;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold" style="color:#ef4444;"><i class="bi bi-exclamation-triangle-fill me-1"></i> Branches Needing Attention</h6>
+                        <span class="badge" style="background:rgba(239,68,68,.1);color:#ef4444;font-weight:700;"><?= count($needsAttention) ?></span>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            <?php foreach ($needsAttention as $na): ?>
+                            <li class="list-group-item px-4 py-3 d-flex align-items-center justify-content-between gap-2">
+                                <div>
+                                    <div class="fw-semibold" style="font-size:.85rem;"><?= htmlspecialchars($na['name']) ?></div>
+                                    <div class="text-muted" style="font-size:.75rem;">
+                                        <?= (int)$na['active_enrollments'] === 0 && (int)$na['total_students'] > 0 ? 'No active enrollments' : 'No revenue this month' ?>
+                                    </div>
+                                </div>
+                                <a href="branches.php" class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border-radius:6px;font-size:.75rem;font-weight:600;white-space:nowrap;">Review</a>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Top Programs Across All Branches -->
+            <?php if (!empty($topPrograms)): ?>
+            <div class="col-lg-<?= !empty($needsAttention) ? '8' : '12' ?> fade-up">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold"><i class="bi bi-star-fill me-1" style="color:#f59e0b;"></i> Top Programs Across All Branches</h6>
+                        <a href="reports.php" class="btn btn-sm" style="background:rgba(245,158,11,.1);color:#f59e0b;font-weight:600;border-radius:8px;">Full Report</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <?php
+                        $maxEnrollments = max(1, (int)($topPrograms[0]['total_enrollments'] ?? 1));
+                        foreach ($topPrograms as $i => $tp):
+                            $pct = round((int)$tp['total_enrollments'] / $maxEnrollments * 100);
+                            $barColors = ['#6366f1','#10b981','#f59e0b','#0ea5e9','#ec4899'];
+                            $c = $barColors[$i % count($barColors)];
+                        ?>
+                        <div class="d-flex align-items-center gap-3 px-4 py-3 border-bottom" style="font-size:.85rem;">
+                            <div style="width:20px;text-align:center;font-weight:700;color:<?= $c ?>;font-size:.8rem;">#<?= $i+1 ?></div>
+                            <div class="flex-grow-1" style="min-width:0;">
+                                <div class="fw-semibold text-truncate mb-1"><?= htmlspecialchars($tp['name']) ?></div>
+                                <div style="background:#f1f5f9;border-radius:4px;height:5px;">
+                                    <div style="width:<?= $pct ?>%;background:<?= $c ?>;border-radius:4px;height:5px;transition:width .5s;"></div>
+                                </div>
+                            </div>
+                            <div class="text-end" style="min-width:72px;">
+                                <div class="fw-bold" style="color:<?= $c ?>;"><?= (int)$tp['total_enrollments'] ?></div>
+                                <div class="text-muted" style="font-size:.72rem;"><?= (int)$tp['branches_offering'] ?> branch<?= (int)$tp['branches_offering'] !== 1 ? 'es' : '' ?></div>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+        </div>
+        <?php endif; ?>
+
+        <!-- Audit Trail Highlights -->
+        <?php if (!empty($recentAudit)): ?>
+        <div class="card mb-4 fade-up">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-journal-text me-1" style="color:#6366f1;"></i> Audit Trail Highlights</h6>
+                <a href="audit_logs.php" class="btn btn-sm" style="background:var(--accent-light);color:#6366f1;font-weight:600;border-radius:8px;">Full Log</a>
+            </div>
+            <div class="card-body p-0">
+                <?php foreach ($recentAudit as $al): ?>
+                <div class="activity-item">
+                    <div class="avatar-sm" style="background:rgba(99,102,241,.1);color:#6366f1;">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div class="flex-grow-1" style="min-width:0;">
+                        <div class="fw-semibold text-truncate" style="font-size:.85rem;">
+                            <?= htmlspecialchars($al['user_name'] ?? 'System') ?>
+                            <span class="badge ms-1" style="background:rgba(99,102,241,.08);color:#6366f1;font-size:.7rem;font-weight:600;"><?= htmlspecialchars($al['module'] ?? '') ?></span>
+                        </div>
+                        <div class="text-muted text-truncate" style="font-size:.75rem;"><?= htmlspecialchars($al['action'] ?? '') ?></div>
+                    </div>
+                    <span class="text-muted" style="font-size:.72rem;white-space:nowrap;"><?= !empty($al['created_at']) ? date('M j, H:i', strtotime($al['created_at'])) : '' ?></span>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php endif; // end isSuperAdmin exceptions ?>
+
+        <!-- ── Branch Admin: Today's Quick Actions ─────────────── -->
+        <?php if ($isBranchAdmin): ?>
+        <div class="card quick-actions mb-4 fade-up">
+            <div class="card-body py-3 d-flex flex-wrap align-items-center gap-3">
+                <div class="kpi-icon" style="background:rgba(16,185,129,0.1);color:#10b981;"><i class="bi bi-lightning-charge-fill"></i></div>
+                <div class="flex-grow-1">
+                    <div class="fw-bold" style="font-size:.9rem;">Today's Quick Actions</div>
+                    <div class="text-muted" style="font-size:.78rem;">Fast access to today's key operations</div>
+                </div>
+                <a href="attendance.php" class="btn btn-sm px-3" style="background:#10b981;color:#fff;font-weight:600;border-radius:8px;white-space:nowrap;">
+                    <i class="bi bi-calendar-check me-1"></i> Take Attendance
+                </a>
+                <a href="student_registration.php" class="btn btn-sm btn-outline-secondary px-3" style="border-radius:8px;font-weight:600;white-space:nowrap;">
+                    <i class="bi bi-person-plus me-1"></i> New Enrollment
+                </a>
+                <a href="payments.php" class="btn btn-sm btn-outline-secondary px-3" style="border-radius:8px;font-weight:600;white-space:nowrap;">
+                    <i class="bi bi-cash-coin me-1"></i> Payments
+                </a>
+                <a href="transfers.php" class="btn btn-sm btn-outline-secondary px-3" style="border-radius:8px;font-weight:600;white-space:nowrap;">
+                    <i class="bi bi-arrow-left-right me-1"></i> Transfers
+                </a>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- ── Branch Admin: Operations Widgets ─────────────── -->
         <?php if ($isBranchAdmin): ?>
         <div class="row g-3 mb-4">
@@ -574,6 +778,28 @@ CSS;
                                 </div>
                             </div>
                         </a>
+                        <?php if ($lowAttendanceCount > 0): ?>
+                        <a href="attendance.php" class="text-decoration-none">
+                            <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);">
+                                <div class="kpi-icon" style="background:rgba(99,102,241,.1);color:#6366f1;flex-shrink:0;"><i class="bi bi-person-exclamation"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="color:#6366f1;font-size:.88rem;"><?= $lowAttendanceCount ?> Low-Attendance Student<?= $lowAttendanceCount !== 1 ? 's' : '' ?></div>
+                                    <div class="text-muted" style="font-size:.76rem;">Below 60% attendance — review needed</div>
+                                </div>
+                            </div>
+                        </a>
+                        <?php endif; ?>
+                        <?php if ($newAdmissionsThisWeek > 0): ?>
+                        <a href="students.php" class="text-decoration-none">
+                            <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.12);">
+                                <div class="kpi-icon" style="background:rgba(16,185,129,.1);color:#10b981;flex-shrink:0;"><i class="bi bi-person-plus-fill"></i></div>
+                                <div>
+                                    <div class="fw-bold" style="color:#10b981;font-size:.88rem;"><?= $newAdmissionsThisWeek ?> New Admission<?= $newAdmissionsThisWeek !== 1 ? 's' : '' ?> This Week</div>
+                                    <div class="text-muted" style="font-size:.76rem;">Registered in the last 7 days</div>
+                                </div>
+                            </div>
+                        </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
