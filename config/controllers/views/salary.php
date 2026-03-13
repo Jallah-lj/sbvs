@@ -2,7 +2,7 @@
 ob_start();
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header("Location: http://localhost/sbvs/config/controllers/views/login.php");
+    header("Location: login.php");
     exit;
 }
 require_once '../../database.php';
@@ -622,11 +622,14 @@ $activePage = 'salary.php';
             </div>
             <div class="modal-footer no-print border-top-0 p-3 bg-white">
                 <button class="btn btn-light fw-bold" data-bs-dismiss="modal">Close</button>
-                <button class="btn btn-primary fw-bold px-4 shadow-sm" onclick="window.print()"><i class="bi bi-printer-fill me-2"></i>Print Payslip</button>
+                <button class="btn btn-primary fw-bold px-4 shadow-sm" onclick="printPayslip()"><i class="bi bi-printer-fill me-2"></i>Print Payslip</button>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Hidden payslip print area -->
+<div id="payslipPrintableArea" style="display:none;"></div>
 
 <!-- Scripts -->
 <?php require_once __DIR__ . '/partials/scripts.php'; ?>
@@ -701,7 +704,7 @@ function loadGrades() {
                 </div>
             </td></tr>`).join('');
         $('#gradesTable tbody').html(tbody);
-        gradesTable = $('#gradesTable').DataTable({retrieve:true, pageLength:10, language:{emptyTable:'No grades defined yet.'}});
+        gradesTable = $('#gradesTable').DataTable({retrieve:true, responsive:true, pageLength:10, language:{emptyTable:'No grades defined yet.'}});
     });
 }
 function loadGradeOptions() {
@@ -766,7 +769,7 @@ function loadComponents() {
             </td></tr>`).join('');
 
         $('#componentsTable tbody').html(tbody);
-        componentsTable = $('#componentsTable').DataTable({retrieve:true, pageLength:15, language:{emptyTable:'No components defined yet.'}});
+        componentsTable = $('#componentsTable').DataTable({retrieve:true, responsive:true, pageLength:15, language:{emptyTable:'No components defined yet.'}});
     });
 }
 function openComponentModal(id) {
@@ -853,7 +856,7 @@ function loadProfiles() {
             </td></tr>`).join('');
 
         $('#profilesTable tbody').html(tbody);
-        profilesTable = $('#profilesTable').DataTable({retrieve:true, pageLength:15, language:{emptyTable:'No salary profiles assigned yet.'}});
+        profilesTable = $('#profilesTable').DataTable({retrieve:true, responsive:true, pageLength:15, language:{emptyTable:'No salary profiles assigned yet.'}});
     });
 }
 function openProfileModal(id) {
@@ -1019,7 +1022,7 @@ function loadRuns() {
                 <td><div class="btn-group shadow-sm rounded">${actions}</div></td></tr>`;
         }).join('');
         $('#runsTable tbody').html(tbody);
-        runsTable = $('#runsTable').DataTable({retrieve:true, pageLength:12, order:[[0,'desc']], language:{emptyTable:'No payroll runs yet.'}});
+        runsTable = $('#runsTable').DataTable({retrieve:true, responsive:true, pageLength:12, order:[[0,'desc']], language:{emptyTable:'No payroll runs yet.'}});
     });
 }
 function openRunModal() {
@@ -1094,7 +1097,7 @@ function viewSlips(runId, period) {
         </tr>`).join('');
         if (slipsTable) slipsTable.destroy();
         $('#slipsTable tbody').html(tbody);
-        slipsTable = $('#slipsTable').DataTable({retrieve:true, pageLength:25, language:{emptyTable:'No payslips in this run.'}});
+        slipsTable = $('#slipsTable').DataTable({retrieve:true, responsive:true, pageLength:25, language:{emptyTable:'No payslips in this run.'}});
         new bootstrap.Modal(document.getElementById('slipsModal')).show();
     });
 }
@@ -1123,6 +1126,7 @@ function viewPayslip(slipId) {
                     <div class="text-end">
                         <h4 class="mb-2 fw-bold text-uppercase tracking-wider text-light">PAY SLIP</h4>
                         <div class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-50 px-3 py-2 mb-2 fs-6 shadow-sm"><i class="bi bi-calendar3 me-2"></i>${mNames[d.pay_period_month]} ${d.pay_period_year}</div>
+                        <div class="small text-white-50"><i class="bi bi-hash me-1"></i>Slip No: <strong>PS-${String(d.id).padStart(5,'0')}</strong></div>
                         <div class="small text-white-50"><i class="bi bi-clock-history me-1"></i>Pay Date: <strong>${d.pay_date}</strong></div>
                     </div>
                 </div>
@@ -1134,6 +1138,7 @@ function viewPayslip(slipId) {
                             <h6 class="text-muted fw-bold mb-3 text-uppercase small" style="letter-spacing:1px;"><i class="bi bi-person-badge me-2"></i>Employee Details</h6>
                             <table class="table table-sm table-borderless mb-0">
                                 <tr><td class="text-muted w-25 small">Name</td><td class="fw-bolder fs-6">${d.employee_name}</td></tr>
+                                ${d.teacher_id ? `<tr><td class="text-muted small">Staff ID</td><td class="fw-semibold font-monospace">${d.teacher_id}</td></tr>` : ''}
                                 <tr><td class="text-muted small">Email</td><td class="fw-semibold text-secondary">${d.email}</td></tr>
                                 <tr><td class="text-muted small">Role</td><td><span class="badge bg-secondary bg-opacity-10 text-secondary border px-2">${d.employee_role}</span></td></tr>
                                 <tr><td class="text-muted small">Grade</td><td>${d.grade_name ? `<span class="badge bg-primary bg-opacity-10 text-primary border">${d.grade_name} (L${d.grade_level})</span>` : '<span class="text-muted">—</span>'}</td></tr>
@@ -1204,13 +1209,34 @@ function viewPayslip(slipId) {
             </div>
             
             <div class="card-footer border-top-0 bg-light p-3 text-center text-muted small" style="border-radius: 0 0 0.5rem 0.5rem;">
-                <i class="bi bi-shield-check me-1 text-success"></i>This is a system generated payslip and does not require a physical signature.<br>
-                <span class="opacity-50">Generated by SBVS &bull; ${new Date().toLocaleDateString()}</span>
+                <i class="bi bi-shield-check me-1 text-success"></i>This is a system-generated payslip and does not require a physical signature.<br>
+                <span class="opacity-50">Generated by SBVS &bull; Slip #PS-${String(d.id).padStart(5,'0')} &bull; ${new Date().toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</span>
             </div>
         </div>`;
         $('#payslipBody').html(html);
         new bootstrap.Modal(document.getElementById('payslipModal')).show();
     });
+}
+
+function printPayslip() {
+    const body = document.getElementById('payslipBody');
+    if (!body) return;
+    const area = document.getElementById('payslipPrintableArea');
+    area.innerHTML = body.innerHTML;
+    const style = document.createElement('style');
+    style.textContent = `
+        @media print {
+            body > *:not(#payslipPrintableArea) { display:none !important; }
+            #payslipPrintableArea {
+                display:block !important;
+                -webkit-print-color-adjust:exact;
+                print-color-adjust:exact;
+            }
+        }`;
+    area.appendChild(style);
+    area.style.display = 'block';
+    window.print();
+    setTimeout(() => { area.style.display = 'none'; area.innerHTML = ''; }, 500);
 }
 </script>
 </body>

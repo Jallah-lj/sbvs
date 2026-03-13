@@ -22,6 +22,29 @@ $isSuperAdmin  = ($role === 'Super Admin');
 $isBranchAdmin = ($role === 'Branch Admin');
 $isAdmin       = ($role === 'Admin');
 
+// ── Auto-migration: ensure teachers.teacher_id column exists and backfill ──
+(function (PDO $db, Teacher $model) {
+    // Add teacher_id column if it doesn't exist yet
+    $exists = (int)$db->query(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME   = 'teachers'
+           AND COLUMN_NAME  = 'teacher_id'"
+    )->fetchColumn();
+
+    if ($exists === 0) {
+        $db->exec("ALTER TABLE teachers ADD COLUMN teacher_id VARCHAR(50) NULL UNIQUE");
+    }
+
+    // Backfill any rows that still have no teacher_id
+    $nullRows = $db->query("SELECT id FROM teachers WHERE teacher_id IS NULL ORDER BY id ASC")
+                   ->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($nullRows as $tid) {
+        $newId = $model->generateTeacherId();
+        $db->prepare("UPDATE teachers SET teacher_id = ? WHERE id = ?")->execute([$newId, $tid]);
+    }
+})($db, $teacherModel);
+
 $action = $_GET['action'] ?? '';
 
 // LIST
@@ -51,16 +74,21 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $branchToUse = $isSuperAdmin ? intval($_POST['branch_id']) : $sessionBranch;
 
+    $phone = trim($_POST['phone']);
     $data = [
         'name'           => trim($_POST['name']),
         'email'          => trim($_POST['email']),
-        'phone'          => trim($_POST['phone']),
+        'phone'          => $phone,
         'specialization' => trim($_POST['specialization']),
         'branch_id'      => $branchToUse
     ];
     $result = $teacherModel->create($data);
     if ($result === true) {
-        echo json_encode(["status" => "success"]);
+        // Return the default password so the admin can communicate it
+        echo json_encode([
+            "status"           => "success",
+            "default_password" => $phone ?: '(phone not set – please reset manually)'
+        ]);
     } else {
         echo json_encode(["status" => "error", "message" => $result]);
     }

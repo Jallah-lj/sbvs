@@ -2,7 +2,7 @@
 ob_start();
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header("Location: http://localhost/sbvs/config/controllers/views/login.php");
+    header("Location: login.php");
     exit;
 }
 
@@ -107,7 +107,7 @@ $activePage = 'student_profile.php';
                             <?php
                             $photo    = $student['photo_url'] ?? '';
                             $photoAbs = $photo ? '/opt/lampp/htdocs/sbvs/' . $photo : '';
-                            $photoUrl = $photo ? 'http://localhost/sbvs/' . $photo : '';
+                            $photoUrl = $photo ? '/sbvs/' . $photo : '';
                             if ($photo && file_exists($photoAbs)):
                             ?>
                                 <img src="<?= htmlspecialchars($photoUrl) ?>" class="avatar-circle" alt="Student Photo">

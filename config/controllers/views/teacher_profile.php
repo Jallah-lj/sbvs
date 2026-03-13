@@ -2,7 +2,7 @@
 ob_start();
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header("Location: http://localhost/sbvs/config/controllers/views/login.php");
+    header("Location: login.php");
     exit;
 }
 
@@ -16,7 +16,7 @@ $db = (new Database())->getConnection();
 
 // ── Core teacher info (via teachers.id) ──────────────────────────────────────
 $stmt = $db->prepare(
-    "SELECT t.id AS teacher_id, t.phone, t.specialization, t.status,
+    "SELECT t.id AS db_id, t.teacher_id, t.phone, t.specialization, t.status,
             u.id AS user_id, u.name, u.email, u.role, u.created_at,
             b.name AS branch_name
      FROM teachers t
@@ -26,6 +26,10 @@ $stmt = $db->prepare(
 );
 $stmt->execute([(int)$_GET['id']]);
 $teacher = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Build display ID: prefer stored teacher_id; fall back to INS-XXXX for legacy rows
+$teacherDisplayId = $teacher['teacher_id']
+    ?: ('INS-' . str_pad($teacher['db_id'] ?? 0, 4, '0', STR_PAD_LEFT));
 
 if (!$teacher) {
     header("Location: teachers.php");
@@ -71,7 +75,7 @@ $activePage = 'teacher_profile.php';
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="teachers.php" class="text-decoration-none"><i class="bi bi-person-badge-fill me-1"></i> Instructors</a></li>
-                <li class="breadcrumb-item active"><?= htmlspecialchars($teacher['name']) ?> (<code>INS-<?= str_pad($teacher['teacher_id'], 4, '0', STR_PAD_LEFT) ?></code>)</li>
+                <li class="breadcrumb-item active"><?= htmlspecialchars($teacher['name']) ?> (<code><?= htmlspecialchars($teacherDisplayId) ?></code>)</li>
             </ol>
         </nav>
 
@@ -163,8 +167,8 @@ $activePage = 'teacher_profile.php';
                                             <td class="py-3"><?= htmlspecialchars($teacher['name']) ?></td>
                                         </tr>
                                         <tr class="border-bottom border-light">
-                                            <th class="ps-0 py-3 fw-medium text-dark">Employee ID</th>
-                                            <td class="py-3"><code class="fs-6 bg-light text-primary px-2 py-1 rounded">INS-<?= str_pad($teacher['teacher_id'], 4, '0', STR_PAD_LEFT) ?></code></td>
+                                            <th class="ps-0 py-3 fw-medium text-dark">Instructor ID</th>
+                                            <td class="py-3"><code class="fs-6 bg-light text-primary px-2 py-1 rounded"><?= htmlspecialchars($teacherDisplayId) ?></code></td>
                                         </tr>
                                         <tr class="border-bottom border-light">
                                             <th class="ps-0 py-3 fw-medium text-dark">Email Address</th>

@@ -2,7 +2,7 @@
 ob_start();
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header("Location: http://localhost/sbvs/config/controllers/views/login.php");
+    header("Location: login.php");
     exit;
 }
 
@@ -196,7 +196,8 @@ $activePage = 'teachers.php';
                     <table class="table table-hover align-middle w-100" id="teacherTable">
                         <thead class="table-light text-muted small text-uppercase" style="letter-spacing: 0.05em;">
                             <tr>
-                                <th class="ps-3 fw-semibold">Full Name</th>
+                                <th class="ps-3 fw-semibold">Instructor ID</th>
+                                <th class="fw-semibold">Full Name</th>
                                 <th class="fw-semibold">Email</th>
                                 <th class="fw-semibold">Phone</th>
                                 <th class="fw-semibold">Specialization</th>
@@ -353,7 +354,13 @@ $(document).ready(function () {
             data: function (d) { d.branch_id = $('#branchFilter').val(); }
         },
         columns: [
-            { data: 'name', className: 'fw-bold text-dark ps-3 align-middle' },
+            {
+                data: 'teacher_id', className: 'ps-3 align-middle',
+                render: function (data) {
+                    return data ? '<code class="text-primary small">' + data + '</code>' : '<span class="text-muted small">—</span>';
+                }
+            },
+            { data: 'name', className: 'fw-bold text-dark align-middle' },
             { data: 'email', className: 'text-muted align-middle' },
             { data: 'phone', className: 'text-muted align-middle' },
             { data: 'specialization', className: 'text-dark fw-medium align-middle' },
@@ -403,7 +410,17 @@ $(document).ready(function () {
             dataType: 'json',
             success: function (res) {
                 if (res.status === 'success') {
-                    Swal.fire('Registered!', 'Instructor has been added.', 'success');
+                    const defPwd = res.default_password || '(see phone number)';
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Instructor Registered!',
+                        html: `Instructor account created.<br><br>`
+                            + `<div class="alert alert-warning text-start p-2 mb-0" style="font-size:.85rem;">`
+                            + `<i class="bi bi-key-fill me-1"></i><strong>Default Login Password:</strong> `
+                            + `<code>${defPwd}</code><br>`
+                            + `<small class="text-muted">Please share these credentials securely and ask the instructor to change their password on first login.</small>`
+                            + `</div>`
+                    });
                     $('#addTeacherModal').modal('hide');
                     $('#teacherForm')[0].reset();
                     table.ajax.reload();

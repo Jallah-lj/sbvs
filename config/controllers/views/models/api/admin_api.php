@@ -15,7 +15,7 @@ $action = $_GET['action'] ?? '';
 
 if ($action == 'list') {
     // Fetch only users with 'Branch Admin' role
-    $query = "SELECT u.id, u.name, u.email, u.status, b.name as branch_name 
+    $query = "SELECT u.id, u.name, u.email, u.status, u.branch_id, b.name as branch_name 
               FROM users u 
               JOIN branches b ON u.branch_id = b.id 
               WHERE u.role = 'Branch Admin'";

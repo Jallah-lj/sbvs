@@ -372,6 +372,7 @@ $activePage = 'payments.php';
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
 const isSuperAdmin  = <?= $isSuperAdmin ? 'true' : 'false' ?>;
+const printedByUser = <?= json_encode($userName) ?>;
 const API           = 'models/api/payment_api.php';
 let dtTable         = null;
 let currentFilters  = {};
@@ -782,6 +783,8 @@ function showReceipt(paymentId){
                 <div style="text-align:right;font-size:.72rem;">
                     <div style="color:#94a3b8;font-size:.62rem;">Printed</div>
                     <div style="font-weight:600;">${printed}</div>
+                    <div style="color:#94a3b8;font-size:.62rem;margin-top:3px;">By</div>
+                    <div style="font-weight:600;">${printedByUser}</div>
                 </div>
             </div>
         </div>
