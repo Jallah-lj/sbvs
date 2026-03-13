@@ -701,7 +701,7 @@ function loadGrades() {
                 </div>
             </td></tr>`).join('');
         $('#gradesTable tbody').html(tbody);
-        gradesTable = $('#gradesTable').DataTable({retrieve:true, pageLength:10, language:{emptyTable:'No grades defined yet.'}});
+        gradesTable = $('#gradesTable').DataTable({retrieve:true, responsive:true, pageLength:10, language:{emptyTable:'No grades defined yet.'}});
     });
 }
 function loadGradeOptions() {
@@ -766,7 +766,7 @@ function loadComponents() {
             </td></tr>`).join('');
 
         $('#componentsTable tbody').html(tbody);
-        componentsTable = $('#componentsTable').DataTable({retrieve:true, pageLength:15, language:{emptyTable:'No components defined yet.'}});
+        componentsTable = $('#componentsTable').DataTable({retrieve:true, responsive:true, pageLength:15, language:{emptyTable:'No components defined yet.'}});
     });
 }
 function openComponentModal(id) {
@@ -853,7 +853,7 @@ function loadProfiles() {
             </td></tr>`).join('');
 
         $('#profilesTable tbody').html(tbody);
-        profilesTable = $('#profilesTable').DataTable({retrieve:true, pageLength:15, language:{emptyTable:'No salary profiles assigned yet.'}});
+        profilesTable = $('#profilesTable').DataTable({retrieve:true, responsive:true, pageLength:15, language:{emptyTable:'No salary profiles assigned yet.'}});
     });
 }
 function openProfileModal(id) {
@@ -1019,7 +1019,7 @@ function loadRuns() {
                 <td><div class="btn-group shadow-sm rounded">${actions}</div></td></tr>`;
         }).join('');
         $('#runsTable tbody').html(tbody);
-        runsTable = $('#runsTable').DataTable({retrieve:true, pageLength:12, order:[[0,'desc']], language:{emptyTable:'No payroll runs yet.'}});
+        runsTable = $('#runsTable').DataTable({retrieve:true, responsive:true, pageLength:12, order:[[0,'desc']], language:{emptyTable:'No payroll runs yet.'}});
     });
 }
 function openRunModal() {
@@ -1094,7 +1094,7 @@ function viewSlips(runId, period) {
         </tr>`).join('');
         if (slipsTable) slipsTable.destroy();
         $('#slipsTable tbody').html(tbody);
-        slipsTable = $('#slipsTable').DataTable({retrieve:true, pageLength:25, language:{emptyTable:'No payslips in this run.'}});
+        slipsTable = $('#slipsTable').DataTable({retrieve:true, responsive:true, pageLength:25, language:{emptyTable:'No payslips in this run.'}});
         new bootstrap.Modal(document.getElementById('slipsModal')).show();
     });
 }

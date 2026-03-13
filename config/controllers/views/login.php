@@ -29,7 +29,7 @@ if (empty($_SESSION['csrf_token'])) {
 
         body {
             font-family: 'Inter', system-ui, sans-serif;
-            min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -39,7 +39,9 @@ if (empty($_SESSION['csrf_token'])) {
                 radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.28) 0%, transparent 50%),
                 radial-gradient(ellipse at 60% 80%, rgba(6,182,212,0.2)   0%, transparent 50%),
                 linear-gradient(135deg, #050816 0%, #0f1117 50%, #0c0f1a 100%);
-            overflow: hidden;
+            /* Allow scrolling on short/landscape mobile instead of clipping */
+            overflow-y: auto;
+            padding: 24px 16px;
             -webkit-font-smoothing: antialiased;
         }
 
@@ -315,7 +317,8 @@ if (empty($_SESSION['csrf_token'])) {
         .trust-row {
             display: flex;
             justify-content: center;
-            gap: 1.2rem;
+            flex-wrap: wrap;
+            gap: 0.75rem 1.2rem;
             margin-top: 1rem;
         }
         .trust-item {
@@ -326,6 +329,18 @@ if (empty($_SESSION['csrf_token'])) {
             color: rgba(255,255,255,0.28);
         }
         .trust-item i { font-size: 0.82rem; color: rgba(99,102,241,0.7); }
+        /* ── Mobile responsiveness ───────────────────────────────── */
+        @media (max-width: 480px) {
+            .login-card-inner {
+                padding: 1.85rem 1.4rem 1.6rem;
+            }
+            .login-card::before {
+                border-radius: 21px;
+            }
+            .login-card-inner {
+                border-radius: 20px;
+            }
+        }
     </style>
 </head>
 <body>

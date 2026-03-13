@@ -212,3 +212,27 @@ function _navActive(string $page, string $active): string {
 
 </aside>
 
+<!-- ── Mobile bottom navigation bar (shown only ≤991px) ──────────────── -->
+<nav class="mobile-bottom-nav">
+    <a href="dashboard.php"  class="bnav-item<?= _navActive('dashboard.php',  $_activePage) ?>"><i class="bi bi-speedometer2"></i>Home</a>
+
+    <?php if ($_isBA): ?>
+    <a href="students.php"   class="bnav-item<?= _navActive('students.php',   $_activePage) ?>"><i class="bi bi-people-fill"></i>Students</a>
+    <a href="attendance.php" class="bnav-item<?= _navActive('attendance.php', $_activePage) ?>"><i class="bi bi-calendar-check-fill"></i>Attend.</a>
+    <a href="payments.php"   class="bnav-item<?= _navActive('payments.php',   $_activePage) ?>"><i class="bi bi-cash-stack"></i>Finance</a>
+
+    <?php elseif ($_isSA): ?>
+    <a href="branches.php"   class="bnav-item<?= _navActive('branches.php',   $_activePage) ?>"><i class="bi bi-buildings"></i>Branches</a>
+    <a href="reports.php"    class="bnav-item<?= _navActive('reports.php',    $_activePage) ?>"><i class="bi bi-graph-up-arrow"></i>Reports</a>
+    <a href="audit_logs.php" class="bnav-item<?= _navActive('audit_logs.php', $_activePage) ?>"><i class="bi bi-journal-text"></i>Audit</a>
+
+    <?php else: ?>
+    <a href="students.php"   class="bnav-item<?= _navActive('students.php',   $_activePage) ?>"><i class="bi bi-people-fill"></i>Students</a>
+    <a href="courses.php"    class="bnav-item<?= _navActive('courses.php',    $_activePage) ?>"><i class="bi bi-journal-bookmark-fill"></i>Courses</a>
+    <?php endif; ?>
+
+    <a href="#" class="bnav-item" onclick="event.preventDefault(); document.querySelector('.sidebar').classList.add('open'); document.querySelector('.sidebar-overlay').classList.add('show');">
+        <i class="bi bi-grid-3x3-gap-fill"></i>Menu
+    </a>
+</nav>
+

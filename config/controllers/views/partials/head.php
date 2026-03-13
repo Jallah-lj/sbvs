@@ -340,8 +340,44 @@ $pageTitle = $pageTitle ?? 'SBVS Portal';
 
         .sidebar-overlay.show { display: block; }
 
-        /* ══════════════════════════════════════════════════════════════════
-           CARDS
+        /* ── Mobile bottom navigation bar ──────────────────────────────── */
+        .mobile-bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: auto;
+            background: var(--sidebar-bg);
+            border-top: 1px solid rgba(255,255,255,0.06);
+            z-index: 1040;
+            padding: 4px 0 max(4px, env(safe-area-inset-bottom));
+        }
+
+        @media (max-width: 991.98px) {
+            .mobile-bottom-nav { display: flex; }
+            .sbvs-main { padding-bottom: 72px; }
+        }
+
+        .bnav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 6px 4px;
+            color: #848699;
+            font-size: 0.58rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.18s;
+            letter-spacing: 0.2px;
+        }
+
+        .bnav-item i { font-size: 1.15rem; }
+
+        .bnav-item:hover,
+        .bnav-item.active { color: var(--accent-2); }
+
+
            ══════════════════════════════════════════════════════════════════ */
         .card {
             border-radius: var(--card-radius);
@@ -607,6 +643,103 @@ $pageTitle = $pageTitle ?? 'SBVS Portal';
         .btn-primary:hover, .btn-primary:focus {
             background: var(--accent-hover);
             border-color: var(--accent-hover);
+        }
+
+        /* ══════════════════════════════════════════════════════════════════
+           RESPONSIVE — Mobile-first polish
+           ══════════════════════════════════════════════════════════════════ */
+
+        /* ── Modals: full-screen on phones (< 576px) ────────────────────── */
+        @media (max-width: 575.98px) {
+            .modal-dialog {
+                margin: 0;
+                max-width: 100%;
+                width: 100%;
+                min-height: 100dvh;
+                align-items: flex-end;
+            }
+            .modal-content {
+                border-radius: 20px 20px 0 0 !important;
+                min-height: 30dvh;
+            }
+            .modal-dialog-centered {
+                align-items: flex-end;
+                min-height: 100dvh;
+            }
+        }
+
+        /* ── KPI cards: smaller value on very small screens ─────────────── */
+        @media (max-width: 400px) {
+            .kpi-value  { font-size: 1.25rem; }
+            .kpi-icon   { width: 36px; height: 36px; font-size: 0.9rem; }
+        }
+
+        /* ── Page header: tighter padding on phones ─────────────────────── */
+        @media (max-width: 575.98px) {
+            .page-header {
+                padding: 16px 18px;
+            }
+            .page-header h4, .page-header h5 {
+                font-size: 1.05rem !important;
+            }
+        }
+
+        /* ── Cards: less padding on phones ──────────────────────────────── */
+        @media (max-width: 575.98px) {
+            .card-body  { padding: 14px 14px !important; }
+            .card-header { padding: 10px 14px !important; }
+        }
+
+        /* ── Tables: smaller font on xs so more data fits ───────────────── */
+        @media (max-width: 575.98px) {
+            .table > thead > tr > th,
+            .table > tbody > tr > td {
+                font-size: 0.8rem;
+                padding: 9px 8px;
+            }
+        }
+
+        /* ── Action buttons: bigger tap targets on mobile ───────────────── */
+        @media (max-width: 767.98px) {
+            .btn-action {
+                width: 36px;
+                height: 36px;
+                font-size: 0.88rem;
+            }
+        }
+
+        /* ── DataTables toolbar: wrap on narrow screens ─────────────────── */
+        @media (max-width: 575.98px) {
+            div.dataTables_wrapper div.dataTables_filter,
+            div.dataTables_wrapper div.dataTables_length {
+                text-align: left;
+                float: none;
+                margin-bottom: 8px;
+            }
+            div.dataTables_wrapper div.dataTables_filter input {
+                width: 100%;
+                margin-left: 0;
+            }
+            div.dataTables_wrapper div.dataTables_info,
+            div.dataTables_wrapper div.dataTables_paginate {
+                text-align: center;
+                float: none;
+                margin-top: 8px;
+            }
+        }
+
+        /* ── Charts: shorter height on phones ───────────────────────────── */
+        @media (max-width: 575.98px) {
+            .chart-wrap { height: 180px; }
+        }
+
+        /* ── Forms inside modals: full-width on xs ───────────────────────── */
+        @media (max-width: 575.98px) {
+            .row.g-3 > [class*="col-md"],
+            .row.g-2 > [class*="col-sm"] {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
         }
 
         /* ── Print ──────────────────────────────────────────────────────── */
