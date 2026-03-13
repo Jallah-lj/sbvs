@@ -74,16 +74,21 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $branchToUse = $isSuperAdmin ? intval($_POST['branch_id']) : $sessionBranch;
 
+    $phone = trim($_POST['phone']);
     $data = [
         'name'           => trim($_POST['name']),
         'email'          => trim($_POST['email']),
-        'phone'          => trim($_POST['phone']),
+        'phone'          => $phone,
         'specialization' => trim($_POST['specialization']),
         'branch_id'      => $branchToUse
     ];
     $result = $teacherModel->create($data);
     if ($result === true) {
-        echo json_encode(["status" => "success"]);
+        // Return the default password so the admin can communicate it
+        echo json_encode([
+            "status"           => "success",
+            "default_password" => $phone ?: '(phone not set – please reset manually)'
+        ]);
     } else {
         echo json_encode(["status" => "error", "message" => $result]);
     }

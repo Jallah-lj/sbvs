@@ -140,9 +140,29 @@ class Teacher {
     }
 
     public function delete($id) {
-        $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
-        $stmt = $this->conn->prepare($query);
-        return $stmt->execute([':id' => $id]);
+        try {
+            $this->conn->beginTransaction();
+            // Fetch the linked user_id before deleting the teacher row
+            $stmt = $this->conn->prepare("SELECT user_id FROM " . $this->table_name . " WHERE id = :id LIMIT 1");
+            $stmt->execute([':id' => $id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Delete the teacher record
+            $del = $this->conn->prepare("DELETE FROM " . $this->table_name . " WHERE id = :id");
+            $del->execute([':id' => $id]);
+
+            // Cascade-delete the linked users record so the account cannot be used to log in
+            if ($row && !empty($row['user_id'])) {
+                $delUser = $this->conn->prepare("DELETE FROM users WHERE id = :uid AND role = 'Teacher'");
+                $delUser->execute([':uid' => $row['user_id']]);
+            }
+
+            $this->conn->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->conn->rollBack();
+            return false;
+        }
     }
 }
 ?>

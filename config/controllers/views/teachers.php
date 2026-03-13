@@ -2,7 +2,7 @@
 ob_start();
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header("Location: http://localhost/sbvs/config/controllers/views/login.php");
+    header("Location: login.php");
     exit;
 }
 
@@ -410,7 +410,17 @@ $(document).ready(function () {
             dataType: 'json',
             success: function (res) {
                 if (res.status === 'success') {
-                    Swal.fire('Registered!', 'Instructor has been added.', 'success');
+                    const defPwd = res.default_password || '(see phone number)';
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Instructor Registered!',
+                        html: `Instructor account created.<br><br>`
+                            + `<div class="alert alert-warning text-start p-2 mb-0" style="font-size:.85rem;">`
+                            + `<i class="bi bi-key-fill me-1"></i><strong>Default Login Password:</strong> `
+                            + `<code>${defPwd}</code><br>`
+                            + `<small class="text-muted">Please share these credentials securely and ask the instructor to change their password on first login.</small>`
+                            + `</div>`
+                    });
                     $('#addTeacherModal').modal('hide');
                     $('#teacherForm')[0].reset();
                     table.ajax.reload();

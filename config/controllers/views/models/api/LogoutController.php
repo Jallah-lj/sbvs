@@ -17,5 +17,5 @@ if (ini_get("session.use_cookies")) {
 session_destroy();
 
 // Redirect to login with a logout message
-header("Location: http://localhost/sbvs/config/controllers/views/login.php?msg=logged_out");
+header("Location: ../../../controllers/views/login.php?msg=logged_out");
 exit;

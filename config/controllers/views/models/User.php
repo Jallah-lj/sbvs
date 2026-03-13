@@ -15,7 +15,7 @@ class User {
      */
     public function login($email, $password) {
         try {
-            $query = "SELECT id, name, email, password_hash, role, branch_id FROM " . $this->table_name . " WHERE email = :email LIMIT 0,1";
+            $query = "SELECT id, name, email, password_hash, role, branch_id, status FROM " . $this->table_name . " WHERE email = :email LIMIT 0,1";
             $stmt = $this->conn->prepare($query);
 
             $stmt->bindParam(':email', $email, PDO::PARAM_STR);
@@ -25,6 +25,9 @@ class User {
                 $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if (password_verify($password, $row['password_hash'])) {
+                    if (($row['status'] ?? 'Active') !== 'Active') {
+                        return "Your account is inactive. Please contact an administrator.";
+                    }
                     $_SESSION['user_id']    = $row['id'];
                     $_SESSION['user_name']  = $row['name'];
                     $_SESSION['name']       = $row['name'];
