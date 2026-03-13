@@ -345,6 +345,7 @@ $(document).ready(function () {
     }
 
     function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    // ── end of $(document).ready ─────────────────────────────────────────────
 });
 
 function openReview(id) {
@@ -352,8 +353,6 @@ function openReview(id) {
     document.getElementById('review_status').value = 'Approved';
     new bootstrap.Modal(document.getElementById('reviewModal')).show();
 }
-
-function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 </script>
 </body>
 </html>

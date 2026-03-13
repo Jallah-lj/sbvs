@@ -221,12 +221,6 @@ if ($isBranchAdmin) {
     } catch (Exception $e) { $todayBatches = []; }
 
     try {
-        $overduePayments = (int)$db->prepare(
-            "SELECT COUNT(DISTINCT s.id) FROM students s
-             LEFT JOIN payments p ON p.student_id = s.id
-             WHERE s.branch_id = ?
-               AND (p.balance > 0 OR p.id IS NULL)"
-        );
         $ovStmt = $db->prepare(
             "SELECT COUNT(*) FROM payments WHERE branch_id = ? AND balance > 0"
         );

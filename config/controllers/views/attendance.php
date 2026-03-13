@@ -372,8 +372,6 @@ $(document).ready(function () {
     function statusBadge(s) {
         return `<span class="att-${(s||'').toLowerCase()}">${escHtml(s||'—')}</span>`;
     }
-
-    function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 });
 
 function markAll(status) {
