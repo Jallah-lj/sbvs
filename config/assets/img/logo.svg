@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  <defs>
+    <!-- Rich Golden Gradient -->
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="30%" stop-color="#F59E0B" />
+      <stop offset="70%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#92400E" />
+    </linearGradient>
+    
+    <!-- Path for curved text -->
+    <path id="textPathTop" d="M 60 170 Q 200 140 340 170" fill="transparent" />
+  </defs>
+
+  <!-- Crown (Top) -->
+  <path d="M 50 140 L 20 20 L 130 80 L 200 10 L 270 80 L 380 20 L 350 140 Z" fill="url(#gold)" />
+  
+  <!-- Main Shield -->
+  <path d="M 40 140 Q 200 110 360 140 L 330 390 Q 200 490 70 390 Z" 
+        fill="#111827" stroke="url(#gold)" stroke-width="20" stroke-linejoin="round" />
+
+  <!-- SB Letters -->
+  <text x="200" y="340" font-family="'Arial Black', 'Inter', sans-serif" font-weight="900" 
+        font-size="180" fill="url(#gold)" text-anchor="middle" letter-spacing="-5" transform="scale(1, 1.1) translate(0, -30)">SB</text>
+
+  <!-- Curved top text -->
+  <text font-family="'Inter', sans-serif" font-weight="600" font-size="20" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">
+    <textPath href="#textPathTop" startOffset="50%">
+      Shining Vocational School
+    </textPath>
+  </text>
+  
+  <!-- Bottom Text -->
+  <text x="200" y="445" font-family="'Inter', sans-serif" font-weight="800" font-size="24" fill="#FFFFFF" text-anchor="middle" letter-spacing="3">
+    EST: 2023
+  </text>
+</svg>
